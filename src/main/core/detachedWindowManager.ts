@@ -69,6 +69,26 @@ class DetachedWindowManager {
   }
 
   /**
+   * 在 Windows 独立窗口显示插件视图后触发一次合成器重绘。
+   * @param view 待重绘的插件视图。
+   * @returns 无返回值。
+   */
+  private forceRepaintPluginView(view: WebContentsView): void {
+    if (process.platform !== 'win32' || view.webContents.isDestroyed()) return
+
+    const bounds = view.getBounds()
+    if (bounds.width <= 0 || bounds.height <= 0) return
+
+    // 跨事件循环微调高度，避免 Chromium 合并两次边界更新而跳过重绘。
+    view.setBounds({ ...bounds, height: bounds.height + 1 })
+    setImmediate(() => {
+      if (!view.webContents.isDestroyed()) {
+        view.setBounds(bounds)
+      }
+    })
+  }
+
+  /**
    * 计算 macOS 系统交通灯在当前标题栏中的垂直居中位置。
    * @param titlebarHeight 当前分离窗口标题栏高度，单位为像素。
    * @returns Electron 交通灯左上角坐标。
@@ -323,6 +343,7 @@ class DetachedWindowManager {
           height: bounds.height - currentTitlebarHeight
         })
         win.contentView.addChildView(pluginView)
+        this.forceRepaintPluginView(pluginView)
 
         // 如果需要自动聚焦子输入框，延迟聚焦搜索框（等待 DOM 渲染完成）
         if (options.autoFocusSubInput === true) {
@@ -404,6 +425,7 @@ class DetachedWindowManager {
 
       // 显示窗口
       win.show()
+      this.forceRepaintPluginView(pluginView)
 
       // 焦点跟踪：实时记录焦点在标题栏还是插件视图
       win.webContents.on('focus', () => {
@@ -446,6 +468,7 @@ class DetachedWindowManager {
       // 窗口从后台恢复时，用快照状态恢复焦点
       // （此时 webContents focus 事件已经把 lastFocusTarget 覆盖成 titlebar 了）
       win.on('focus', () => {
+        this.forceRepaintPluginView(pluginView)
         if (windowInfo.savedFocusTarget === 'plugin') {
           if (!pluginView.webContents.isDestroyed()) {
             pluginView.webContents.focus()
@@ -608,6 +631,7 @@ class DetachedWindowManager {
         // 单独 focus() 不一定能提升窗口层级，所以先 show() 再 focus()，确保重入插件时窗口前置。
         if (process.platform === 'darwin') windowInfo.window.show()
         windowInfo.window.focus()
+        this.forceRepaintPluginView(windowInfo.view)
         return true
       }
     }
@@ -702,6 +726,7 @@ class DetachedWindowManager {
     })
     info.window.show()
     info.window.focus()
+    this.forceRepaintPluginView(info.view)
     return true
   }
 

@@ -1,4 +1,10 @@
-import { OpenDialogOptions, OpenDialogReturnValue, BrowserWindow, dialog } from 'electron'
+import {
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+  BrowserWindow,
+  dialog,
+  nativeTheme
+} from 'electron'
 import os from 'os'
 
 /**
@@ -46,6 +52,8 @@ export function applyWindowMaterial(
   if (!win || win.isDestroyed()) return
 
   const isWindows = process.platform === 'win32'
+  // 无材质窗口作为透明插件视图的底色时，必须和应用主题一致。
+  const fallbackBackgroundColor = nativeTheme.shouldUseDarkColors ? '#303133' : '#f4f4f4'
 
   switch (material) {
     case 'mica':
@@ -57,7 +65,7 @@ export function applyWindowMaterial(
         // console.log(`✅ 窗口 ${win.id} Mica 材质已启用`)
       } catch (error) {
         console.error(`[WindowUtils] 窗口 ${win.id} 设置 Mica 失败:`, error)
-        win.setBackgroundColor('#f4f4f4')
+        win.setBackgroundColor(fallbackBackgroundColor)
       }
       break
     case 'acrylic':
@@ -69,14 +77,14 @@ export function applyWindowMaterial(
         // console.log(`✅ 窗口 ${win.id} Acrylic 材质已启用`)
       } catch (error) {
         console.error(`[WindowUtils] 窗口 ${win.id} 设置 Acrylic 失败:`, error)
-        win.setBackgroundColor('#f4f4f4')
+        win.setBackgroundColor(fallbackBackgroundColor)
       }
       break
     case 'none':
     default:
       try {
         win.setBackgroundMaterial('none')
-        win.setBackgroundColor('#f4f4f4')
+        win.setBackgroundColor(fallbackBackgroundColor)
         // console.log(`✅ 窗口 ${win.id} 已禁用窗口材质`)
       } catch (error) {
         console.error(`[WindowUtils] 窗口 ${win.id} 设置背景失败:`, error)
